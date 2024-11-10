@@ -1,0 +1,153 @@
+[
+    {
+        "name": "image_name",
+        "type": "finite",
+        "representation": [
+            "ISIC_2637011",
+            "ISIC_0015719",
+            "ISIC_0052212",
+            "ISIC_0068279",
+            "ISIC_0074268",
+            "ISIC_0074311",
+            "ISIC_0074542",
+            "ISIC_0075663",
+            "ISIC_0075914",
+            "ISIC_0076262",
+            "ISIC_0076545",
+            "ISIC_0076742",
+            "ISIC_0076995",
+            "ISIC_0077472",
+            "ISIC_0077735",
+            "ISIC_0078703",
+            "ISIC_0078712",
+            "ISIC_0079038",
+            "ISIC_0080512",
+            "ISIC_0080752",
+            "ISIC_0080817",
+            "ISIC_0081956",
+            "ISIC_0082348",
+            "ISIC_0082543",
+            "ISIC_0082934",
+            "ISIC_0083035",
+            "ISIC_0084086",
+            "ISIC_0084270",
+            "ISIC_0084395",
+            "ISIC_0085172"
+        ]
+    },
+    {
+        "name": "patient_id",
+        "type": "finite",
+        "representation": [
+            "IP_7279968",
+            "IP_3075186",
+            "IP_2842074",
+            "IP_6890425",
+            "IP_8723313",
+            "IP_2950485",
+            "IP_4698288",
+            "IP_6017204",
+            "IP_7622888",
+            "IP_5075533",
+            "IP_9802602",
+            "IP_2318163",
+            "IP_2235340",
+            "IP_3691360",
+            "IP_1109756",
+            "IP_5279861",
+            "IP_1870306",
+            "IP_2613684",
+            "IP_7318404",
+            "IP_2010919",
+            "IP_7684360",
+            "IP_9463965",
+            "IP_6572129",
+            "IP_5805281",
+            "IP_4023055",
+            "IP_2961528",
+            "IP_0175539",
+            "IP_1705144"
+        ]
+    },
+    {
+        "name": "sex",
+        "type": "finite",
+        "representation": [
+            "male",
+            "female"
+        ]
+    },
+    {
+        "name": "age_approx",
+        "type": "finite",
+        "representation": [
+            "25",
+            "30",
+            "35",
+            "40",
+            "45",
+            "50",
+            "55",
+            "60",
+            "65",
+            "70",
+            "75"
+        ]
+    },
+    {
+        "name": "anatom_site_general_challenge",
+        "type": "finite",
+        "representation": [
+            "head/neck",
+            "upper extremity",
+            "lower extremity",
+            "torso"
+        ]
+    },
+    {
+        "name": "diagnosis",
+        "type": "finite",
+        "representation": [
+            "unknown",
+            "nevus"
+        ]
+    },
+    {
+        "name": "benign_malignant",
+        "type": "finite",
+        "representation": [
+            "benign"
+        ]
+    },
+    {
+        "name": "target",
+        "type": "finite",
+        "representation": [
+            "0",
+            "1"
+        ]
+    },
+    {
+        "name": "tfrecord",
+        "type": "finite",
+        "representation": [
+            "0",
+            "1"
+        ]
+    },
+    {
+        "name": "width",
+        "type": "Integer",
+        "representation": []
+    },
+    {
+        "name": "height",
+        "type": "Integer",
+        "representation": []
+    },
+    {
+        "name": "patient_code",
+        "type": "Integer",
+        "representation": []
+    }
+]

@@ -28,6 +28,8 @@ def run_pipeline(i, df_aux, target_record, datasets_test, labels_test, target_re
             os.makedirs(save_dir)
         except:
             pass
+
+    print(df_aux)
       
     datasets_train, labels_train, _ = create_shadow_training_data_membership(df = df_aux, meta_data = meta_data,
                                     target_record = target_record, generator = generator, n_original = n_original,
@@ -78,7 +80,7 @@ def run_pipeline(i, df_aux, target_record, datasets_test, labels_test, target_re
     ### Classifier with TargetAttention
     enablePrint()
     print('Beginning targetattention')
-    blockPrint()
+    # blockPrint()
     
     TARGET_ATTENTION_MODEL_PARAMS = {'num_in_features':len(ohe_column_names) + len(continuous_cols) + 2,
                                      'embedding_hidden_size':10, 'embedding_size':10,

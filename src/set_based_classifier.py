@@ -287,14 +287,22 @@ def train_model(train_loader, val_loader, model_type, target_record_tensor, mode
             
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            if( i==0):
+                print(inputs, labels)
 
+            # labels = labels.view(-1)
+            # labels = labels.squeeze()
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs = model(inputs)
             sigmoid_outputs = torch.sigmoid(outputs)
-            loss = criterion(sigmoid_outputs, labels)
+
+            try:
+                loss = criterion(sigmoid_outputs, labels)
+            except:
+                print("heree", labels, sigmoid_outputs)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
@@ -304,6 +312,7 @@ def train_model(train_loader, val_loader, model_type, target_record_tensor, mode
             training_losses, training_acc = [], []
             for i, data in enumerate(train_loader, 0):
                 inputs, labels = data
+                # labels = labels.view(-1)
                 outputs = model(inputs)
                 sigmoid_outputs = torch.sigmoid(outputs)
                 loss = criterion(sigmoid_outputs, labels)
@@ -317,6 +326,7 @@ def train_model(train_loader, val_loader, model_type, target_record_tensor, mode
             val_losses, val_acc = [], []
             for i, val_data in enumerate(val_loader, 0):
                 val_inputs, val_labels = val_data
+                # val_labels = val_labels.view(-1)
                 val_outputs = model(val_inputs)
                 val_sigmoid_outputs = torch.sigmoid(val_outputs)
                 loss = criterion(val_sigmoid_outputs, val_labels)
@@ -356,6 +366,8 @@ def validate_model(model_type, path_best_model, target_record_tensor, model_para
     
     for i, data in enumerate(train_loader, 0):
         inputs, labels = data
+        # labels = labels.view(-1)
+
         outputs = model(inputs)
         sigmoid_outputs = torch.sigmoid(outputs)
         loss = criterion(sigmoid_outputs, labels)
@@ -376,6 +388,8 @@ def validate_model(model_type, path_best_model, target_record_tensor, model_para
     test_losses, test_pred_proba, test_y_true = [], [], []
     for i, test_data in enumerate(test_loader, 0):
         test_inputs, test_labels = test_data
+        # test_labels = test_labels.view(-1)
+
         test_outputs = model(test_inputs)
         if test_outputs.shape != test_labels.shape:
             test_outputs = test_outputs.reshape(test_labels.shape[0], test_labels.shape[1])

@@ -7,12 +7,18 @@ import multiprocessing as mp
 from time import time
 from tqdm import tqdm
 
+import sys
+sys.path.append('dp-ctgans/src')
+from dp_cgans import DP_CGAN
+import pandas as pd
+import torch
+
 from src.data_prep import read_data, read_metadata, select_columns, discretize_dataset, \
     get_target_record, normalize_cont_cols
-from src.generators import get_generator
+# from src.generators import get_generator
 from src.shadow_data import create_shadow_training_data_membership, create_shadow_training_data_membership_synthetic_only_s3
 from src.utils import blockPrint, enablePrint, str2bool, str2list
-from src.synthetic_only_parallel import run_pipeline_parallel
+from src.synthetic_only_parallel import run_pipeline
 
 # ---------- Data Setup ------------ #
 # Read the input of the user
@@ -32,11 +38,11 @@ parser.add_argument("--name_generator", type = str, default = 'privbayes', help 
 parser.add_argument("--epsilon", type = float, default = 1000.0, help = "epsilon value for DP synthetic data generator")
 parser.add_argument("--n_aux", type = int, default = 50000, help = "number of records in the auxiliary data")
 parser.add_argument("--n_test", type = int, default = 25000, help = "number of records in the test data")
-parser.add_argument("--n_original", type = int, default = 1000,
+parser.add_argument("--n_original", type = int, default = 20,
                     help = "number of records in the original data, from which synthetic data is generated")
 parser.add_argument("--n_synthetic", type = int, default = 1000,
                     help = "number of records in the generated synthetic dataset")
-parser.add_argument("--n_pos_train", type = int, default = 1000,
+parser.add_argument("--n_pos_train", type = int, default = 100,
                     help = "number of shadow datasets with a positive label for training, the total number of train shadow datasets is twice this number")
 parser.add_argument("--n_pos_test", type = int, default = 100,
                     help = "number of shadow datasets with a positive label for testing, the total number of test shadow datasets is twice this number")
@@ -56,7 +62,7 @@ parser.add_argument("--nbr_cores", type = int, default = 1,
                     help = "On how many cores we want to run the attck with Option 3 (Optimal)")
 parser.add_argument("--unique", type=str2bool, default='True',
                     help= "If we want to use only a single prediction in the case of the synthetic option")
-parser.add_argument("--m", type=int, default=50,
+parser.add_argument("--m", type=int, default=5,
                     help= "The number of time we generate N_SYNTH")
 
 
@@ -107,11 +113,11 @@ def main():
 
     # get a target record, for now just by selecting an index
     target_record = get_target_record(df, TARGET_RECORD_ID)
-
+    print("data gotten")
     # specify a generator
-    generator = get_generator(NAME_GENERATOR, epsilon = EPSILON)
+    # generator = get_generator(NAME_GENERATOR, epsilon = EPSILON)
 
-    blockPrint()
+    # blockPrint()
     # get all datasets for shadow training, for now only MIA
     #if we are in the synthetic only case (scenario S1, S2 and S3)
     train_seeds = list(range(SEED, SEED + N_POS_TRAIN * 2))
@@ -122,25 +128,46 @@ def main():
     df_wo_target = df[cols_equal_to_target != len(df.columns)]
     # check if this got rid of at least the target record
     assert len(df) - len(df_wo_target) >= 1
-        
+    print("going  in the scenario")
     if SCENARIO == 3 :
         #Scenario S3
-        datasets_test, datasets_test_s3, labels_test = create_shadow_training_data_membership_synthetic_only_s3(df = df_wo_target, meta_data = meta_data, generator = generator, n_original = N_ORIGINAL,
-                                   n_synth = N_SYNTHETIC, n_pos = N_POS_TEST, seeds = test_seeds, target_record = target_record, m = M)
+        datasets_test, datasets_test_s3, labels_test = create_shadow_training_data_membership_synthetic_only_s3(df = df_wo_target, meta_data = meta_data, generator = "generator", n_original = N_ORIGINAL,
+                                   n_synth = 1, n_pos = N_POS_TEST, seeds = test_seeds, target_record = target_record, m = M)
     else :
         #Scenario S1 and S2
         datasets_test, labels_test, _ = create_shadow_training_data_membership(df = df_wo_target, meta_data = meta_data,
-                                  target_record = target_record, generator = generator, n_original = N_ORIGINAL,
+                                  target_record = target_record, generator = "generator", n_original = N_ORIGINAL,
                                    n_synth = M*N_SYNTHETIC, n_pos = N_POS_TEST, seeds = test_seeds)
 
     #Argument for the // code
     t1 = time()
     args_list = []
     results_=[]
+    args = parser.parse_args()
+
     for l,dataset_test in enumerate(datasets_test):
+
         if SCENARIO == 2:
+            model = DP_CGAN(
+                epochs=50, # number of training epochs
+                batch_size=100, # the size of each batch
+                log_frequency=True,
+                verbose=True,
+                generator_dim=(128, 128, 128),
+                discriminator_dim=(128, 128, 128),
+                generator_lr=2e-4, 
+                discriminator_lr=2e-4,
+                discriminator_steps=1, 
+                private=False,
+                )
+            dataset_test = dataset_test.head(30)
+            model.fit(dataset_test)
+            # model.load_state_dict(torch.load("/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth"))
+            state_dict = torch.load('/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth')
+            print(state_dict.keys())
+            dataset_aux  = model.sample(44)
             #In scenario S2, we train a generator on top of the released dataset to perform the pipeline of attack
-            dataset_aux  = generator.fit_generate(dataset=dataset_test, metadata=meta_data, size= M*N_SYNTHETIC, seed = SEED + N_POS_TRAIN * 2 + 2*N_POS_TEST * 2 + 42)
+            # dataset_aux  = generator.fit_generate(dataset=dataset_test, metadata=meta_data, size= M*N_SYNTHETIC, seed = SEED + N_POS_TRAIN * 2 + 2*N_POS_TEST * 2 + 42)
         else :
             if SCENARIO == 3:
                 #In scenario S3, we use a version without the target of the released dataset
@@ -158,18 +185,33 @@ def main():
                 args_list.append((l, dataset_aux, target_record, [dataset_test.sample(n=N_SYNTHETIC, random_state=10*j) for j in range(1,11)], [labels_test[l] for _ in range(10) ], TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV, SEED, continuous_cols, categorical_cols, meta_data, generator, N_ORIGINAL,N_SYNTHETIC,N_POS_TRAIN,train_seeds, SCENARIO, NAME_GENERATOR, args))
         else:
             if UNIQUE:
-                args_list.append((l, dataset_aux, target_record, [dataset_test.head(N_SYNTHETIC)], [labels_test[l]], TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV, SEED, continuous_cols, categorical_cols, meta_data, generator, N_ORIGINAL,N_SYNTHETIC,N_POS_TRAIN,train_seeds, SCENARIO, NAME_GENERATOR, args))
-            else :
-                args_list.append((l, dataset_aux, target_record, [dataset_test.sample(n=N_SYNTHETIC, random_state=10*j) for j in range(1,11)], [labels_test[l] for _ in range(10) ], TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV, SEED, continuous_cols, categorical_cols, meta_data, generator, N_ORIGINAL,N_SYNTHETIC,N_POS_TRAIN,train_seeds, SCENARIO, NAME_GENERATOR, args))
+                args_list.append((
+                    l, dataset_aux, target_record, [dataset_test.head(10)], [labels_test[l]],
+                    TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV, SEED, continuous_cols, categorical_cols,
+                    meta_data, "generator", N_ORIGINAL, N_SYNTHETIC, N_POS_TRAIN, train_seeds, SCENARIO,
+                    NAME_GENERATOR, args
+                ))
+            else:
+                args_list.append((
+                    l, dataset_aux, target_record,
+                    [dataset_test.sample(n=N_SYNTHETIC, random_state=10 * j) for j in range(1, 11)],
+                    [labels_test[l] for _ in range(10)], TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV,
+                    SEED, continuous_cols, categorical_cols, meta_data, "generator", N_ORIGINAL,
+                    N_SYNTHETIC, N_POS_TRAIN, train_seeds, SCENARIO, NAME_GENERATOR, args
+                ))
 
+    # Sequentially process each item in args_list
+
+    print(len(args_list))
     results = []
-    #we perform the experiment by batch of size nbr_cores
     for batch_start in range(0, len(args_list), args.nbr_cores):
         batch_end = min(batch_start + args.nbr_cores, len(args_list))
         args_list_batch = args_list[batch_start:batch_end]
-        with mp.Pool(args.nbr_cores) as pool:
-            for result in tqdm(pool.imap(run_pipeline_parallel, args_list_batch),total=len(args_list_batch)):
-                results.append(result)
+        # Sequentially run each batch item
+        for args_ in args_list_batch:
+            result = run_pipeline(*args_)  # Use *args_ to unpack the tuple directly into run_pipeline
+            results.append(result)
+
     enablePrint()
     if len(results)==len(datasets_test):
         print('success!')
