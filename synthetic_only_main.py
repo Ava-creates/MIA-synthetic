@@ -15,7 +15,7 @@ import torch
 
 from src.data_prep import read_data, read_metadata, select_columns, discretize_dataset, \
     get_target_record, normalize_cont_cols
-# from src.generators import get_generator
+from src.generators import get_generator
 from src.shadow_data import create_shadow_training_data_membership, create_shadow_training_data_membership_synthetic_only_s3
 from src.utils import blockPrint, enablePrint, str2bool, str2list
 from src.synthetic_only_parallel import run_pipeline
@@ -115,7 +115,7 @@ def main():
     target_record = get_target_record(df, TARGET_RECORD_ID)
     print("data gotten")
     # specify a generator
-    # generator = get_generator(NAME_GENERATOR, epsilon = EPSILON)
+    generator = get_generator(NAME_GENERATOR, epsilon = EPSILON)
 
     # blockPrint()
     # get all datasets for shadow training, for now only MIA
@@ -131,12 +131,12 @@ def main():
     print("going  in the scenario")
     if SCENARIO == 3 :
         #Scenario S3
-        datasets_test, datasets_test_s3, labels_test = create_shadow_training_data_membership_synthetic_only_s3(df = df_wo_target, meta_data = meta_data, generator = "generator", n_original = N_ORIGINAL,
+        datasets_test, datasets_test_s3, labels_test = create_shadow_training_data_membership_synthetic_only_s3(df = df_wo_target, meta_data = meta_data, generator = generator, n_original = N_ORIGINAL,
                                    n_synth = 1, n_pos = N_POS_TEST, seeds = test_seeds, target_record = target_record, m = M)
     else :
         #Scenario S1 and S2
         datasets_test, labels_test, _ = create_shadow_training_data_membership(df = df_wo_target, meta_data = meta_data,
-                                  target_record = target_record, generator = "generator", n_original = N_ORIGINAL,
+                                  target_record = target_record, generator = generator, n_original = N_ORIGINAL,
                                    n_synth = M*N_SYNTHETIC, n_pos = N_POS_TEST, seeds = test_seeds)
 
     #Argument for the // code
@@ -148,26 +148,26 @@ def main():
     for l,dataset_test in enumerate(datasets_test):
 
         if SCENARIO == 2:
-            model = DP_CGAN(
-                epochs=50, # number of training epochs
-                batch_size=100, # the size of each batch
-                log_frequency=True,
-                verbose=True,
-                generator_dim=(128, 128, 128),
-                discriminator_dim=(128, 128, 128),
-                generator_lr=2e-4, 
-                discriminator_lr=2e-4,
-                discriminator_steps=1, 
-                private=False,
-                )
-            dataset_test = dataset_test.head(30)
-            model.fit(dataset_test)
-            # model.load_state_dict(torch.load("/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth"))
-            state_dict = torch.load('/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth')
-            print(state_dict.keys())
-            dataset_aux  = model.sample(44)
+            # model = DP_CGAN(
+            #     epochs=50, # number of training epochs
+            #     batch_size=100, # the size of each batch
+            #     log_frequency=True,
+            #     verbose=True,
+            #     generator_dim=(128, 128, 128),
+            #     discriminator_dim=(128, 128, 128),
+            #     generator_lr=2e-4, 
+            #     discriminator_lr=2e-4,
+            #     discriminator_steps=1, 
+            #     private=False,
+            #     )
+            # dataset_test = dataset_test.head(30)
+            # model.fit(dataset_test)
+            # # model.load_state_dict(torch.load("/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth"))
+            # state_dict = torch.load('/Users/avanitiwari/Desktop/MIA-synthetic/dp-ctgans/generator.pth')
+            # print(state_dict.keys())
+            # dataset_aux  = model.sample(44)
             #In scenario S2, we train a generator on top of the released dataset to perform the pipeline of attack
-            # dataset_aux  = generator.fit_generate(dataset=dataset_test, metadata=meta_data, size= M*N_SYNTHETIC, seed = SEED + N_POS_TRAIN * 2 + 2*N_POS_TEST * 2 + 42)
+            dataset_aux  = generator.fit_generate(dataset=dataset_test, metadata=meta_data, size= M*N_SYNTHETIC, seed = SEED + N_POS_TRAIN * 2 + 2*N_POS_TEST * 2 + 42)
         else :
             if SCENARIO == 3:
                 #In scenario S3, we use a version without the target of the released dataset
@@ -188,7 +188,7 @@ def main():
                 args_list.append((
                     l, dataset_aux, target_record, [dataset_test.head(10)], [labels_test[l]],
                     TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV, SEED, continuous_cols, categorical_cols,
-                    meta_data, "generator", N_ORIGINAL, N_SYNTHETIC, N_POS_TRAIN, train_seeds, SCENARIO,
+                    meta_data, generator, N_ORIGINAL, N_SYNTHETIC, N_POS_TRAIN, train_seeds, SCENARIO,
                     NAME_GENERATOR, args
                 ))
             else:
@@ -196,7 +196,7 @@ def main():
                     l, dataset_aux, target_record,
                     [dataset_test.sample(n=N_SYNTHETIC, random_state=10 * j) for j in range(1, 11)],
                     [labels_test[l] for _ in range(10)], TARGET_RECORD_ID, FEAT_SELECTION, MODELS, CV,
-                    SEED, continuous_cols, categorical_cols, meta_data, "generator", N_ORIGINAL,
+                    SEED, continuous_cols, categorical_cols, meta_data, generator, N_ORIGINAL,
                     N_SYNTHETIC, N_POS_TRAIN, train_seeds, SCENARIO, NAME_GENERATOR, args
                 ))
 
